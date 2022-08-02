@@ -59,8 +59,9 @@ class EmailMessage(object):
 
         self.found_visible = False
 
-        is_multi_quote_header = self.MULTI_QUOTE_HDR_REGEX_MULTILINE.search(self.text)
-        if is_multi_quote_header:
+        if is_multi_quote_header := self.MULTI_QUOTE_HDR_REGEX_MULTILINE.search(
+            self.text
+        ):
             self.text = self.MULTI_QUOTE_HDR_REGEX.sub(is_multi_quote_header.groups()[0].replace('\n', ''), self.text)
 
         # Fix any outlook style replies, with the reply immediately above the signature boundary line
@@ -83,10 +84,7 @@ class EmailMessage(object):
     def reply(self):
         """ Captures reply message within email
         """
-        reply = []
-        for f in self.fragments:
-            if not (f.hidden or f.quoted):
-                reply.append(f.content)
+        reply = [f.content for f in self.fragments if not (f.hidden or f.quoted)]
         return '\n'.join(reply)
 
     def _scan_line(self, line):
@@ -98,13 +96,16 @@ class EmailMessage(object):
         is_quoted = self.QUOTED_REGEX.match(line) is not None
         is_header = is_quote_header or self.HEADER_REGEX.match(line) is not None
 
-        if self.fragment and len(line.strip()) == 0:
-            if self.SIG_REGEX.match(self.fragment.lines[-1].strip()):
-                self.fragment.signature = True
-                self._finish_fragment()
+        if (
+            self.fragment
+            and len(line.strip()) == 0
+            and self.SIG_REGEX.match(self.fragment.lines[-1].strip())
+        ):
+            self.fragment.signature = True
+            self._finish_fragment()
 
         if self.fragment \
-                and ((self.fragment.headers == is_header and self.fragment.quoted == is_quoted) or
+                    and ((self.fragment.headers == is_header and self.fragment.quoted == is_quoted) or
                          (self.fragment.quoted and (is_quote_header or len(line.strip()) == 0))):
 
             self.fragment.lines.append(line)
